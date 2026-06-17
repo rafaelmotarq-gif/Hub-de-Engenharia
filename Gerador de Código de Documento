@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HUB de Engenharia - Gerador de Lista Mestra</title>
+https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
+/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+  body { background: #f4f6f9; color: #1a2a4a; line-height: 1.5; }
+
+  /* HEADER */
+  header { background: #002d62; color: #fff; padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+  .logo { font-weight: 700; font-size: 22px; letter-spacing: 1px; }
+  .logo span { color: #f5a623; }
+
+  /* HERO */
+  .hero { background: linear-gradient(135deg, #002d62 0%, #0046a0 100%); color: #fff; padding: 50px 40px; text-align: center; }
+  .hero h1 { font-size: 32px; margin-bottom: 10px; }
+  .hero p { font-size: 16px; opacity: .9; }
+
+  /* MAIN */
+  main { max-width: 1300px; margin: 0 auto; padding: 30px 20px; }
+  .card { background: #fff; border-radius: 10px; padding: 28px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .card h2 { color: #002d62; font-size: 22px; margin-bottom: 6px; }
+  .card .subtitle { color: #666; font-size: 14px; margin-bottom: 22px; }
+
+  /* GRID GERADOR */
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .field { display: flex; flex-direction: column; }
+  .field label { font-size: 12px; font-weight: 700; color: #002d62; text-transform: uppercase; margin-bottom: 6px; letter-spacing: .5px; }
+  .field input, .field select { padding: 10px 12px; border: 1.5px solid #d4dae3; border-radius: 6px; font-size: 14px; background: #fff; transition: border-color .2s; }
+  .field input:focus, .field select:focus { outline: none; border-color: #0046a0; }
+  .field input.invalid { border-color: #d9534f; background: #fff5f5; }
+  .field .hint { font-size: 11px; color: #d9534f; margin-top: 4px; min-height: 14px; }
+  .field.full { grid-column: 1 / -1; }
+  .field.code-preview input { background: #eef4ff; font-weight: 700; color: #002d62; font-family: 'Courier New', monospace; }
+
+  /* BOTÕES */
+  .actions { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { padding: 12px 22px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-primary { background: #0046a0; color: #fff; }
+  .btn-primary:hover { background: #002d62; }
+  .btn-primary:disabled { background: #adb5bd; cursor: not-allowed; }
+  .btn-success { background: #28a745; color: #fff; }
+  .btn-success:hover { background: #1f8636; }
+  .btn-success:disabled { background: #adb5bd; cursor: not-allowed; }
+  .btn-icon { background: transparent; color: #d9534f; padding: 6px; border-radius: 4px; }
+  .btn-icon:hover { background: #fde8e8; }
+
+  /* LISTA */
+  .empty-state { text-align: center; padding: 50px 20px; color: #888; }
+  .empty-state svg { width: 60px; height: 60px; opacity: .4; margin-bottom: 12px; }
+  .counter { background: #0046a0; color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 13px; margin-left: 10px; }
+
+  .group { margin-bottom: 22px; }
+  .group-header { background: #002d62; color: #fff; padding: 10px 16px; font-weight: 700; font-size: 14px; border-radius: 6px 6px 0 0; }
+  table { width: 100%; border-collapse: collapse; background: #fff; }
+  th { background: #e9eef5; padding: 10px; text-align: left; font-size: 12px; text-transform: uppercase; color: #002d62; border-bottom: 2px solid #d4dae3; }
+  td { padding: 10px; border-bottom: 1px solid #eef1f5; font-size: 13px; }
+  tr:hover td { background: #f9fbfd; }
+  .code-cell { font-family: 'Courier New', monospace; font-weight: 700; color: #002d62; }
+
+  /* AVISO */
+  .alert { background: #fff8e1; border-left: 4px solid #f5a623; padding: 14px 18px; border-radius: 6px; margin-bottom: 24px; font-size: 14px; }
+  .alert strong { color: #c77c00; }
+
+  /* TOAST DESFAZER */
+  .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #1a2a4a; color: #fff; padding: 14px 22px; border-radius: 8px; display: flex; gap: 16px; align-items: center; box-shadow: 0 4px 14px rgba(0,0,0,.25); z-index: 1000; animation: slideUp .3s ease; }
+  .toast button { background: #f5a623; color: #1a2a4a; border: none; padding: 6px 14px; border-radius: 4px; font-weight: 700; cursor: pointer; }
+  @keyframes slideUp { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .modal { background: #fff; border-radius: 10px; padding: 30px; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+  .modal h3 { color: #c77c00; font-size: 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+  .modal p { margin-bottom: 14px; color: #333; }
+  .modal ul { margin: 10px 0 18px 24px; color: #333; }
+  .modal ul li { margin-bottom: 4px; }
+  .modal .btn { width: 100%; justify-content: center; }
+
+  /* FOOTER */
+  footer { background: #002d62; color: #c4d1e8; padding: 30px 40px; margin-top: 40px; text-align: center; font-size: 13px; }
+  footer p { margin-top: 8px; opacity: .7; }
+
+  @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 500px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">HUB DE <span>ENGENHARIA</span></div>
+  <div style="font-size: 13px; opacity: .8;">BH AIRPORT</div>
+</header>
+
+<div class="hero">
+  <h1>📋 GERADOR DE LISTA MESTRA</h1>
+  <p>Crie sua Lista Mestra de Documentos em poucos cliques</p>
+</div>
+
+<main>
+
+  <div class="alert">
+    ⚠️ <strong>Atenção:</strong> Revise sua Lista Mestra antes do envio. Verifique se todas as disciplinas e documentos do seu projeto estão contemplados. Uma lista incompleta poderá ser devolvida para complementação.
+  </div>
+
+  <!-- GERADOR -->
+  <div class="card">
+    <h2>Gerador de Código de Documento</h2>
+    <p class="subtitle">Preencha os campos abaixo para gerar automaticamente o código correto.</p>
+
+    <div class="grid">
+      <div class="field">
+        <label>Código da Loja / Área</label>
+        <input type="text" id="codigoLoja" placeholder="ex: TP1TL304" maxlength="8" oninput="this.value=this.value.toUpperCase();validar()">
+        <span class="hint" id="hintLoja"></span>
+      </div>
+      <div class="field">
+        <label>Terminal</label>
+        <select id="terminal" onchange="validar()"><option value="">Selecione...</option></select>
+        <span class="hint"></span>
+      </div>
+      <div class="field">
+        <label>Disciplina</label>
+        <select id="disciplina" onchange="validar()"><option value="">Selecione...</option></select>
+        <span class="hint"></span>
+      </div>
+      <div class="field">
+        <label>Etapa do Projeto</label>
+        <select id="etapa" onchange="validar()">
+          <option value="">Selecione...</option>
+          <option value="1000">1000 - Projeto Preliminar</option>
+          <option value="2000">2000 - Projeto Básico</option>
+          <option value="3000">3000 - Projeto Executivo</option>
+          <option value="4000">4000 - As Built</option>
+        </select>
+        <span class="hint"></span>
+      </div>
+      <div class="field">
+        <label>Número da Prancha</label>
+        <select id="prancha" onchange="validar()"><option value="">Selecione...</option></select>
+        <span class="hint"></span>
+      </div>
+      <div class="field">
+        <label>Revisão</label>
+        <select id="revisao" onchange="validar()">
+          <option value="0A">0A - Emissão Inicial</option>
+        </select>
+        <span class="hint"></span>
+      </div>
+      <div class="field">
+        <label>Formato da Folha</label>
+        <select id="formato" onchange="validar()">
+          <option value="">Selecione...</option>
+          <option value="A0">A0</option>
+          <option value="A1">A1</option>
+          <option value="A2">A2</option>
+          <option value="A3">A3</option>
+          <option value="A4">A4</option>
+        </select>
+        <span class="hint"></span>
+      </div>
+      <div class="field">
+        <label>Extensão do Arquivo</label>
+        <input list="extensoes" id="extensao" placeholder="ex: dwg" oninput="this.value=this.value.toLowerCase();validar()">
+        <datalist id="extensoes">
+          <option value="dwg"><option value="docx"><option value="xlsx"><option value="pdf">
+          <option value="rvt"><option value="ppt"><option value="pptx"><option value="doc">
+          <option value="xls"><option value="mp4"><option value="ifc">
+        </datalist>
+        <span class="hint"></span>
+      </div>
+      <div class="field full">
+        <label>Título da Prancha</label>
+        <input type="text" id="titulo" placeholder="ex: Planta de Layout" maxlength="80" oninput="validar()">
+        <span class="hint"></span>
+      </div>
+      <div class="field full code-preview">
+        <label>Código Gerado (Preview)</label>
+        <input type="text" id="codigoPreview" readonly placeholder="—">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btnAdd" onclick="adicionar()" disabled>
+        ➕ ADICIONAR À LISTA MESTRA
+      </button>
+    </div>
+  </div>
+
+  <!-- LISTA -->
+  <div class="card">
+    <h2>Sua Lista Mestra <span class="counter" id="counter">0</span></h2>
+    <p class="subtitle">Os documentos são agrupados automaticamente por disciplina.</p>
+    <div id="listaContainer">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+        <p>Sua lista mestra ainda está vazia.</p>
+        <p style="font-size:13px; margin-top:4px;">Use o gerador acima para adicionar o primeiro documento.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-success" id="btnDownload" onclick="baixarExcel()" disabled>
+        📥 BAIXAR LISTA MESTRA (EXCEL)
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div><strong>BH AIRPORT</strong> — INFRAESTRUTURA E MEIO AMBIENTE</div>
+  <p>Desenvolvido pela Equipe de Infraestrutura e Meio Ambiente | Versão 1.0 | Última atualização: Junho/2026</p>
+</footer>
+
+<script>
+// ================== DADOS ==================
+const TERMINAIS = [
+  {s:'TP1', n:'TERMINAL DE PASSAGEIROS 1', destaque:true},
+  {s:'TP2', n:'TERMINAL DE PASSAGEIROS 2', destaque:true},
+  {s:'ABR', n:'ABRIGO DE RAMPAS'},
+  {s:'AEI', n:'AEROPORTO INDÚSTRIA'},
+  {s:'ANX', n:'ANEXO ADMINISTRATIVO'},
+  {s:'CMF', n:'CENTRO DE MANEJO E FAUNA'},
+  {s:'CT1', n:'CENTRAL DE UTILIDADES 1'},
+  {s:'CT2', n:'CENTRAL DE UTILIDADES 2'},
+  {s:'DEE', n:'DEMAIS EDIFICAÇÕES'},
+  {s:'EDA', n:'EDIFICAÇÃO DE APOIO A'},
+  {s:'ESD', n:'ESTACIONAMENTO'},
+  {s:'MNT', n:'MANUTENÇÃO'},
+  {s:'PAA', n:'PARQUE DE ABASTECIMENTO DE AERONAVES'},
+  {s:'PD2', n:'PISTA DE POUSO E DECOLAGEM 2'},
+  {s:'PPA', n:'PÁTIO DE AERONAVES'},
+  {s:'PPD', n:'PISTA DE POUSO E DECOLAGEM'},
+  {s:'PTR', n:'PISTA DE TÁXI E ROLAMENTO'},
+  {s:'SCI', n:'SEÇÃO CONTRA INCÊNDIO'},
+  {s:'SVI', n:'SISTEMA VIÁRIO'},
+  {s:'TCA', n:'TERMINAL DE CARGAS AÉREAS'}
+];
+
+const DISCIPLINAS = [
+  {grupo:'GERAL (000-099)', itens:[
+    ['000','Geral'],['001','Aerofotogrametria'],['002','Mosaico'],['003','Patrimonial'],
+    ['004','Zona de Proteção'],['005','Zona de Ruído'],['008','Área de Obstáculo'],
+    ['009','Hidrografia'],['010','Projetos (Geométrico/Perfil/Seções)'],
+    ['011','Fiscalização de Obras'],['012','Canteiro de Obras'],
+    ['013','Plano de Desenvolvimento Preliminar'],['014','Plano de Desenvolvimento'],
+    ['015','Plano Diretor'],['016','Estudo de Implantação'],['017','Plano de Gestão da Infraestrutura - PGI'],
+    ['018','Plano de Qualidade de Serviço - PQS'],['019','Barreiras de Segurança'],
+    ['020','Ponto Remoto de Estac. Aeronave sob Ameaça'],['021','Áreas Restritas de Segurança'],
+    ['022','Pontos Vulneráveis'],['023','Pontos Sensíveis'],
+    ['024','Pontos de Controle de Acesso']
+  ]},
+  {grupo:'INFRAESTRUTURA (100-199)', itens:[
+    ['100','Geral'],['101','Topografia'],['102','Drenagem'],['103','Geotecnia'],
+    ['104','Terraplanagem'],['105','Pavimentação'],['106','Muros e Cercas'],
+    ['107','Área Periférica'],['108','Levantamento Hidrográfico/Batimétrico'],
+    ['109','Túnel'],['110','Viaduto'],['113','Sinalização Vertical/Horizontal'],
+    ['114','Cadastro de Obstáculos']
+  ]},
+  {grupo:'ARQUITETURA (200-299)', itens:[
+    ['200','Geral'],['201','Arquitetura'],['202','Urbanização'],['203','Paisagismo'],
+    ['204','Sinalização Vertical/Comunicação Visual'],['205','Interiores'],
+    ['206','Impermeabilização'],['207','Fluxo de Passageiros'],['208','Fluxo de Bagagem Despachada'],
+    ['209','Fluxo de Carga Aérea'],['210','Área de Inspeção de Passageiros e Bagagens de Mão'],
+    ['211','Área de Inspeção de Bagagem Despachada'],['212','Área de Inspeção de Carga Aérea'],
+    ['213','Área de Imigração e Emigração'],['214','Área de Alfândega'],
+    ['215','Área de Saúde e Quarentena'],['216','Área para Bagagem Extraviada'],
+    ['217','Área para Bagagem Suspeita'],['218','Centro de Operações de Emergência'],
+    ['219','Caixilhos'],['220','Conforto Termo Acústico'],['221','Pisos'],
+    ['222','Alvenaria Estruturada'],['223','Cobertura'],['224','Forro'],
+    ['225','Sinalização Horizontal'],['230','Acessibilidade'],
+    ['240','Fluxo de Insumos e Resíduos'],['241','Fluxo de Funcionários/Colaboradores']
+  ]},
+  {grupo:'ESTRUTURA (300-399)', itens:[
+    ['300','Geral'],['301','Estrutura Metálica'],['302','Estrutura de Concreto'],
+    ['303','Estrutura de Madeira'],['304','Fundações'],['305','Contenções'],
+    ['307','Alvenaria Estruturada']
+  ]},
+  {grupo:'ELÉTRICA/ELETROMECÂNICA/ELETRÔNICA (400-499)', itens:[
+    ['400','Geral'],['401','Iluminação'],['402','Aterramento/SPDA'],
+    ['403','Subestação/Transformadores'],['404','Sistema de 400 Hz'],['405','Força'],
+    ['406','Iluminação e Sinalização de Emergência'],['407','Padrão Medição Consumidor'],
+    ['408','Capacitor/Banco de Capacitores'],['409','Quadro de Distribuição/Carga/Demanda'],
+    ['410','Quadro de Comando do Gruger'],['411','Tomadas'],['412','Luminotécnica'],
+    ['413','Quadro de Comando/Controle/Supervisão'],['414','Botoeiras de Emergência'],
+    ['415','Escada e Guarda-corpo para Poste'],['416','Semáforos'],['417','No-Break'],
+    ['418','Iluminação Painel'],['419','Rede de Alimentação'],['420','Grupo Gerador'],
+    ['430','Elevadores'],['431','Escada Rolante'],['432','Ar Condicionado e Ventilação'],
+    ['433','Ponte Rolante'],['434','Portas Automáticas'],['435','Ponte de Embarque'],
+    ['436','Transportadores de Bagagem'],['437','Ar Condicionado para Aeronaves'],
+    ['438','Infraestrutura Seca'],['440','Carrinho de Bagagem'],['441','Balanças'],
+    ['442','Esteira Rolante'],['460','Sistema Informativo de Voos'],
+    ['461','Televisão de Vigilância'],['462','Data e Hora Universais'],['463','Sonorização'],
+    ['464','Rádio Comunicação Aeroportuária'],['467','Inspeção de Passageiros e Bagagem'],
+    ['469','Meteorologia'],['470','Telefonia'],['471','Docagem de Aeronaves'],
+    ['472','Inspeção de Bagagem Despachada'],['473','Alarme e Detecção de Intrusos - SACS'],
+    ['474','Distribuição de Sinal de Rádio e TV'],['475','Inspeção da Carga Aérea'],
+    ['478','BMS-SIGUE'],['480','Controle de Ar Condicionado'],
+    ['481','Gerenciamento de Energia Elétrica'],['482','Gerenciamento de Utilidades'],
+    ['483','Automação Predial e Segurança Aeroportuária'],
+    ['487','Esteiras de Bagagem Despachada'],['488','Irrigação Automática'],
+    ['489','Abertura/Fechamento de Portas'],['490','Rede Telemática - DCNS'],
+    ['491','Rede Privada de Telecomunicação'],['492','Operações Aeroportuárias'],
+    ['493','Controle de Manutenção'],['494','Detecção e Alarme de Incêndio - SDAI']
+  ]},
+  {grupo:'HIDRÁULICA/SANEAMENTO E FLUIDOS INDUSTRIAIS (500-599)', itens:[
+    ['500','Geral'],['501','Rede de Água'],['502','Águas Pluviais'],
+    ['503','Tratamento de Água'],['504','Reservatório Elevado'],['505','Reservatório Subterrâneo'],
+    ['506','Instalação Predial - Água'],['507','Hidrantes de Combustível'],
+    ['508','Poço Tubular'],['509','Reuso de Efluente'],['510','Separador de Água e Óleo'],
+    ['550','Rede de Esgoto'],['551','Cloaca'],['552','Incinerador'],['553','Queimador de Lixo'],
+    ['554','Tratamento de Esgoto'],['555','Lagoa de Oxidação'],['556','Biodigestor'],
+    ['557','Instalação Predial - Esgoto'],['558','Eliminação de Esgoto'],
+    ['559','Aerador de Tabuleiro'],['580','Gás Combustível'],['581','Combustível de Aviação'],
+    ['582','Ar Comprimido'],['583','Vácuo'],['584','Oxigênio']
+  ]},
+  {grupo:'INSTALAÇÕES E EQUIPAMENTOS DE CONTRA INCÊNDIO (600-699)', itens:[
+    ['600','Geral'],['601','Sprinklers'],['602','Portas Contrafogo'],
+    ['603','Escada de Emergência'],['604','Rede de Hidrantes'],['605','Carros Contra Incêndio'],
+    ['606','Limpa Pista'],['607','Extintores'],['608','Laudo de Estanqueidade']
+  ]},
+  {grupo:'INSTALAÇÕES DE PROTEÇÃO AO VOO (700-799)', itens:[
+    ['700','Geral'],['701','VASIS'],['702','ILS'],['703','ALS'],['704','VOR'],['705','DME'],
+    ['706','NDB'],['707','Balizamento Noturno'],['708','Sinalização Horizontal'],
+    ['709','Sinalização Vertical'],['712','Sinalização Luminosa de Aproximação'],
+    ['713','VHF-DF'],['714','TAR'],['715','GMR'],['717','EMS'],['718','EMA']
+  ]},
+  {grupo:'MEIO AMBIENTE (800-899)', itens:[
+    ['800','Geral'],['804','EIA/RIMA'],['805','PBA'],['806','PCA/RCA'],['807','Diagnóstico Ambiental'],
+    ['808','Viabilidade Técnica/Econômica/Ambiental'],['809','RAP'],['810','RAS'],
+    ['811','EIV'],['812','MCE'],['813','Educação Ambiental'],['814','Gestão Ambiental'],
+    ['820','Resíduos Sólidos'],['821','Resíduos Orgânicos'],['822','Plano de Contingência'],
+    ['823','Pragas e Vetores'],['824','Coleta Seletiva'],['830','Riscos Ambientais'],
+    ['831','Auditoria Ambiental'],['832','Auditoria de Riscos'],['833','Emergências Ambientais'],
+    ['834','Gerenciamento de Riscos'],['835','PGRSS'],['836','PGRCC'],
+    ['837','Resíduos Líquidos'],['840','Perigo da Fauna'],['841','Manejo da Fauna'],
+    ['842','Mapeamento de Fauna'],['843','Mapeamento de Atração de Fauna'],
+    ['850','Processos Erosivos'],['851','PRAD'],['852','Monitoramento de Solo e Vegetação'],
+    ['853','Manejo da Vegetação'],['855','Recomposição Florestal'],
+    ['856','Supressão/Poda de Vegetação'],['857','Prospecção Arqueológica'],
+    ['858','Inventário Florestal'],['860','Recursos Hídricos'],
+    ['861','Monitoramento Hídrico'],['862','Saneamento Ambiental'],['863','Hidrometração'],
+    ['864','Qualidade da Água Potável'],['865','Qualidade de Esgoto'],
+    ['870','Plano Diretor de Energia'],['871','Fornecimento de Energia'],
+    ['872','Energias Alternativas'],['873','Diagnóstico Energético'],['874','Eficiência Energética'],
+    ['880','Plano Diretor de Ruídos'],['881','Monitoramento de Ruídos'],
+    ['885','Emissões Atmosféricas'],['886','Monitoramento de Emissões'],
+    ['887','Qualidade do Ar'],['888','Inventário de Emissões'],
+    ['890','Sustentabilidade'],['891','PCAO'],['892','Sistemas Ambientais']
+  ]},
+  {grupo:'PLANEJAMENTO E PROJETO DE EMPREENDIMENTOS COMERCIAIS (900-999)', itens:[
+    ['901','Geral'],['902','Requisitos Comerciais'],['903','Mix Comercial Consolidado'],
+    ['904','Mix Comercial em TPS'],['905','Mix Comercial em Área Externa'],
+    ['906','Distribuição Comercial'],['907','Publicidade'],['908','Pontos de Publicidade'],
+    ['909','Comunicação Visual'],['910','Ambientação'],['911','Parecer Técnico-comercial'],
+    ['912','Nota Técnico-comercial'],['913','Documentação de Concessionário']
+  ]}
+];
+
+const ETAPAS_NOMES = {'1000':'PRELIMINAR','2000':'BÁSICO','3000':'EXECUTIVO','4000':'AS BUILT'};
+
+// ================== ESTADO ==================
+let lista = JSON.parse(localStorage.getItem('listaMestra') || '[]');
+let undoStack = [];
+
+// ================== INIT ==================
+function initSelects() {
+  // Terminal
+  const tSel = document.getElementById('terminal');
+  TERMINAIS.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.s; opt.textContent = `${t.s} - ${t.n}`;
+    if (t.destaque) opt.style.fontWeight = '700';
+    tSel.appendChild(opt);
+  });
+
+  // Disciplina (agrupada)
+  const dSel = document.getElementById('disciplina');
+  DISCIPLINAS.forEach(g => {
+    const og = document.createElement('optgroup');
+    og.label = g.grupo;
+    g.itens.forEach(([cod, nome]) => {
+      const o = document.createElement('option');
+      o.value = cod;
+      o.textContent = `${cod} - ${nome}`;
+      o.dataset.grupo = g.grupo;
+      o.dataset.nome = nome;
+      og.appendChild(o);
+    });
+    dSel.appendChild(og);
+  });
+
+  // Prancha 1-100
+  const pSel = document.getElementById('prancha');
+  for (let i = 1; i <= 100; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = String(i).padStart(2, '0');
+    pSel.appendChild(o);
+  }
+}
+
+// ================== VALIDAÇÃO ==================
+function validar() {
+  const loja = document.getElementById('codigoLoja').value;
+  const term = document.getElementById('terminal').value;
+  const disc = document.getElementById('disciplina').value;
+  const etapa = document.getElementById('etapa').value;
+  const prancha = document.getElementById('prancha').value;
+  const rev = document.getElementById('revisao').value;
+  const fmt = document.getElementById('formato').value;
+  const ext = document.getElementById('extensao').value.trim();
+  const tit = document.getElementById('titulo').value.trim();
+  const hint = document.getElementById('hintLoja');
+  const inp = document.getElementById('codigoLoja');
+
+  let lojaOk = false;
+  inp.classList.remove('invalid');
+  hint.textContent = '';
+
+  if (loja.length > 0) {
+    if (!term) {
+      hint.textContent = 'Selecione primeiro o Terminal.';
+      inp.classList.add('invalid');
+    } else {
+      const regex = new RegExp(`^${term}[A-Z][A-Z]\\d{3}$`);
+      if (!regex.test(loja)) {
+        if (!loja.startsWith(term)) {
+          hint.textContent = `Código deve começar com o terminal selecionado (${term}).`;
+        } else {
+          hint.textContent = `Formato inválido. Use ${term} + 1 letra + 1 letra + 3 dígitos. Ex: ${term}TL304`;
+        }
+        inp.classList.add('invalid');
+      } else {
+        lojaOk = true;
+      }
+    }
+  }
+
+  // Preview do código
+  const preview = document.getElementById('codigoPreview');
+  if (lojaOk && disc && etapa && prancha && rev) {
+    const sufixoLoja = loja.slice(-4); // L304
+    const aaaa = (parseInt(etapa) + parseInt(prancha)).toString();
+    preview.value = `${sufixoLoja}-${term}-${disc}-${aaaa}-${rev}`;
+  } else {
+    preview.value = '';
+  }
+
+  // Habilitar botão
+  const tudoOk = lojaOk && term && disc && etapa && prancha && rev && fmt && ext && tit;
+  document.getElementById('btnAdd').disabled = !tudoOk;
+}
+
+// ================== ADICIONAR ==================
+function adicionar() {
+  const loja = document.getElementById('codigoLoja').value;
+  const term = document.getElementById('terminal').value;
+  const discSel = document.getElementById('disciplina');
+  const disc = discSel.value;
+  const discNome = discSel.options[discSel.selectedIndex].dataset.nome;
+  const discGrupo = discSel.options[discSel.selectedIndex].dataset.grupo;
+  const etapa = document.getElementById('etapa').value;
+  const prancha = document.getElementById('prancha').value;
+  const rev = document.getElementById('revisao').value;
+  const fmt = document.getElementById('formato').value;
+  const ext = document.getElementById('extensao').value.trim();
+  const tit = document.getElementById('titulo').value.trim();
+
+  const sufixoLoja = loja.slice(-4);
+  const aaaa = (parseInt(etapa) + parseInt(prancha)).toString();
+  const codigo = `${sufixoLoja}-${term}-${disc}-${aaaa}-${rev}`;
+
+  lista.push({
+    id: Date.now() + Math.random(),
+    codigo, disciplina: disc, discNome, discGrupo,
+    especialidade: discGrupo.replace(/\s*\(\d{3}-\d{3}\)/, ''),
+    subespecialidade: `${disc} - ${discNome.toUpperCase()}`,
+    etapa, etapaNome: ETAPAS_NOMES[etapa],
+    revisao: rev, formato: fmt, extensao: ext, titulo: tit
+  });
+
+  salvar();
+  renderLista();
+
+  // Limpa só título e prancha; mantém o resto pra acelerar
+  document.getElementById('titulo').value = '';
+  document.getElementById('prancha').value = '';
+  document.getElementById('codigoPreview').value = '';
+
+  // Auto-incremento sugerido na prancha
+  const proxima = parseInt(prancha) + 1;
+  if (proxima <= 100) document.getElementById('prancha').value = proxima;
+
+  validar();
+}
+
+// ================== REMOVER + DESFAZER ==================
+function remover(id) {
+  const idx = lista.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  const removido = lista.splice(idx, 1)[0];
+  undoStack.push({ item: removido, idx });
+  salvar();
+  renderLista();
+  mostrarToast();
+}
+
+function desfazer() {
+  if (!undoStack.length) return;
+  const { item, idx } = undoStack.pop();
+  lista.splice(idx, 0, item);
+  salvar();
+  renderLista();
+  esconderToast();
+}
+
+let toastTimer;
+function mostrarToast() {
+  esconderToast();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.id = 'toast';
+  t.innerHTML = `Documento removido. <button onclick="desfazer()">↶ DESFAZER</button>`;
+  document.body.appendChild(t);
+  toastTimer = setTimeout(esconderToast, 7000);
+}
+function esconderToast() {
+  const t = document.getElementById('toast');
+  if (t) t.remove();
+  clearTimeout(toastTimer);
+}
+
+// ================== RENDER ==================
+function renderLista() {
+  document.getElementById('counter').textContent = lista.length;
+  document.getElementById('btnDownload').disabled = lista.length === 0;
+  const cont = document.getElementById('listaContainer');
+
+  if (lista.length === 0) {
+    cont.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+      <p>Sua lista mestra ainda está vazia.</p>
+      <p style="font-size:13px; margin-top:4px;">Use o gerador acima para adicionar o primeiro documento.</p>
+    </div>`;
+    return;
+  }
+
+  // Agrupar por disciplina
+  const grupos = {};
+  lista.forEach(item => {
+    const k = `${item.especialidade}|||${item.subespecialidade}`;
+    if (!grupos[k]) grupos[k] = { esp: item.especialidade, sub: item.subespecialidade, itens: [] };
+    grupos[k].itens.push(item);
+  });
+
+  let html = '';
+  Object.values(grupos).forEach(g => {
+    html += `<div class="group">
+      <div class="group-header">${g.esp} — ${g.sub}</div>
+      <table>
+        <thead><tr>
+          <th>Ordem</th><th>Etapa</th><th>Código</th><th>Rev.</th>
+          <th>Formato</th><th>Ext.</th><th>Título</th><th></th>
+        </tr></thead><tbody>`;
+    g.itens.forEach((it, i) => {
+      html += `<tr>
+        <td>${i+1}</td>
+        <td>${it.etapaNome}</td>
+        <td class="code-cell">${it.codigo}</td>
+        <td>${it.revisao}</td>
+        <td>${it.formato}</td>
+        <td>${it.extensao}</td>
+        <td>${it.titulo}</td>
+        <td><button class="btn btn-icon" onclick="remover(${it.id})" title="Remover">🗑️</button></td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  });
+  cont.innerHTML = html;
+}
+
+function salvar() {
+  localStorage.setItem('listaMestra', JSON.stringify(lista));
+}
+
+// ================== EXCEL ==================
+async function baixarExcel() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Lista de Documentos');
+
+  ws.columns = [
+    {width:8},{width:22},{width:30},{width:10},{width:30},{width:8},{width:50}
+  ];
+
+  // Título
+  ws.mergeCells('A1:G1');
+  ws.getCell('A1').value = 'Lista Mestra de Documentos';
+  ws.getCell('A1').font = {bold:true, size:16, color:{argb:'FFFFFFFF'}};
+  ws.getCell('A1').fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF002D62'}};
+  ws.getCell('A1').alignment = {horizontal:'center', vertical:'middle'};
+  ws.getRow(1).height = 30;
+
+  // Cabeçalho do cessionário (vazio para preenchimento)
+  const headers = ['Nome Fantasia:', 'Área do Sítio:', 'Número da Concessão:', 'Projetista:'];
+  headers.forEach((h, i) => {
+    const r = i + 2;
+    ws.getCell(`A${r}`).value = h;
+    ws.getCell(`A${r}`).font = {bold:true};
+    ws.mergeCells(`B${r}:G${r}`);
+    ws.getCell(`B${r}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFF8E1'}};
+    ws.getCell(`B${r}`).border = {bottom:{style:'thin', color:{argb:'FFCCCCCC'}}};
+  });
+
+  let row = 7;
+  // Colunas
+  const colHeaders = ['Ordem','Especialidade','Subespecialidade','Formato','Número do Documento','Rev.','Título'];
+
+  // Agrupar
+  const grupos = {};
+  lista.forEach(item => {
+    const k = `${item.especialidade}|||${item.subespecialidade}`;
+    if (!grupos[k]) grupos[k] = { esp:item.especialidade, sub:item.subespecialidade, itens:[] };
+    grupos[k].itens.push(item);
+  });
+
+  Object.values(grupos).forEach(g => {
+    // Header de grupo (especialidade)
+    ws.mergeCells(`A${row}:G${row}`);
+    ws.getCell(`A${row}`).value = g.esp;
+    ws.getCell(`A${row}`).font = {bold:true, color:{argb:'FFFFFFFF'}};
+    ws.getCell(`A${row}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF002D62'}};
+    ws.getCell(`A${row}`).alignment = {horizontal:'left', vertical:'middle'};
+    ws.getRow(row).height = 22;
+    row++;
+
+    // Subgrupo (subespecialidade)
+    ws.mergeCells(`A${row}:G${row}`);
+    ws.getCell(`A${row}`).value = g.sub;
+    ws.getCell(`A${row}`).font = {bold:true, color:{argb:'FF002D62'}};
+    ws.getCell(`A${row}`).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFE9EEF5'}};
+    row++;
+
+    // Cabeçalho de colunas
+    colHeaders.forEach((h, i) => {
+      const c = ws.getCell(row, i+1);
+      c.value = h;
+      c.font = {bold:true};
+      c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFD4DAE3'}};
+      c.alignment = {horizontal:'center'};
+      c.border = {top:{style:'thin'}, bottom:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'}};
+    });
+    row++;
+
+    // Itens
+    g.itens.forEach((it, i) => {
+      const codigoExcel = it.codigo.replace(/-0A$/, '-LD') + '.' + it.extensao;
+      const valores = [i+1, g.esp, g.sub, it.formato, codigoExcel, it.revisao, it.titulo];
+      valores.forEach((v, j) => {
+        const c = ws.getCell(row, j+1);
+        c.value = v;
+        c.border = {top:{style:'thin', color:{argb:'FFCCCCCC'}}, bottom:{style:'thin', color:{argb:'FFCCCCCC'}}, left:{style:'thin', color:{argb:'FFCCCCCC'}}, right:{style:'thin', color:{argb:'FFCCCCCC'}}};
+        c.alignment = {vertical:'middle', wrapText:true};
+        if (j === 0 || j === 5) c.alignment.horizontal = 'center';
+      });
+      row++;
+    });
+    row++; // espaço entre grupos
+  });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const dataStr = new Date().toISOString().slice(0,10);
+  saveAs(blob, `Lista_Mestra_${dataStr}.xlsx`);
+
+  mostrarAvisoPosDownload();
+}
+
+// ================== MODAL ==================
+function mostrarAvisoPosDownload() {
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `
+    <div class="modal">
+      <h3>⚠️ Antes de enviar para o BH Airport</h3>
+      <p>Sua Lista Mestra foi baixada com sucesso. <strong>Abra o arquivo</strong> e preencha os campos do cabeçalho:</p>
+      <ul>
+        <li>Nome Fantasia</li>
+        <li>Área do Sítio</li>
+        <li>Número da Concessão</li>
+        <li>Projetista</li>
+      </ul>
+      <p>Confira também se todos os documentos do seu projeto estão corretamente listados.</p>
+      <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">ENTENDI</button>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+// ================== START ==================
+initSelects();
+renderLista();
+</script>
+
+</body>
+</html>
